@@ -1,92 +1,91 @@
-# Job Application Follow-Up Tracker
+# Resume-Job Match Score
 
 Final project for the Building AI course
 
 ## Summary
 
-A simple tool that looks at your job applications and tells you which ones you should follow up on today, based on how long it's been since you last heard from them. No more forgetting to chase up a recruiter. Building AI course project.
+A simple NLP tool that scores how well a resume matches a job description using TF-IDF and cosine similarity, helping job seekers quickly see how well-aligned their resume is before applying. Building AI course project.
 
 ## Background
 
-If you've ever applied to more than a handful of jobs at once, you know the problem: you lose track. Some recruiters never reply, some take weeks, and it's easy to forget who you're still waiting on and who you should be chasing.
+Job seekers often apply to dozens of roles without a clear, objective sense of how well their resume actually matches each job description. Tailoring a resume for every application takes time, and it's easy to miss important keyword overlaps or overestimate fit based on gut feeling alone.
 
-* It's hard to remember exactly how many days it's been since you emailed a recruiter
-* Different stages need different urgency - waiting a week after just applying is fine, but waiting a week after an interview is not
-* Most people use a messy spreadsheet or sticky notes, which they forget to check
+* Manually comparing a resume against a job description is time-consuming, especially when applying to many roles
+* It's hard to know objectively which keywords or skills are missing from a resume
+* Job seekers may waste time applying to poorly matched roles, or undersell themselves for well-matched ones
 
-My personal motivation: I'm actively job hunting right now, juggling multiple applications across different companies and stages, and I built this because I genuinely needed it.
+My personal motivation: I've been actively job hunting for Senior Software Engineer roles, and have spent considerable time manually comparing my resume against job descriptions to tailor my applications. This project turns that manual process into something quick, repeatable, and quantifiable.
 
 ## How is it used?
 
-You keep a simple spreadsheet-style file (a CSV file) listing your job applications - the company, the role, what stage it's at, the date you last heard from them, and who your contact is.
+The tool takes two pieces of text as input — a resume and a job description — and outputs a percentage match score.
 
-Every day (or whenever you want a check-in), you run the tool, and it reads through your list and tells you in plain English exactly who to follow up with and why.
+It's intended to be used by:
+* **Job seekers**, before submitting an application, to quickly gauge fit and identify if their resume needs tailoring
+* **Recruiters**, as a lightweight first-pass screening aid (with the understanding that it should never fully replace human judgement)
 
-Example of what the tool prints out:
+In practice, a user would paste in their resume text and a target job description, run the script, and get an instant similarity score as a percentage.
 
+```python
+def match_score(resume_text, job_description_text):
+    """
+    Calculates a match score (0-100%) between a resume and a job description
+    using TF-IDF vectors and cosine similarity.
+    """
+    resume_words = tokenize(resume_text)
+    jd_words = tokenize(job_description_text)
+
+    documents = [resume_words, jd_words]
+
+    tf_resume = compute_tf(resume_words)
+    tf_jd = compute_tf(jd_words)
+
+    idf, vocabulary = compute_idf(documents)
+    vocabulary = list(vocabulary)
+
+    vec_resume = compute_tfidf_vector(tf_resume, idf, vocabulary)
+    vec_jd = compute_tfidf_vector(tf_jd, idf, vocabulary)
+
+    similarity = cosine_similarity(vec_resume, vec_jd)
+    return round(similarity * 100, 2)
 ```
-Job Application Follow-Up Reminders
-----------------------------------------
-Follow up with Don about the Senior Software Engineer role at Tribal Group - it's been 4 days since your last contact (current stage: interviewed).
-Follow up with the recruiter about the Integration Engineer role at BildGroup - it's been 8 days since your last contact (current stage: applied).
-```
-
-This is meant for **job seekers** like myself, who are managing several live applications at once and want a simple daily nudge instead of relying on memory.
 
 ## Data sources and AI methods
 
-This tool doesn't need any external dataset - it works entirely from your own personal job application data, which you keep in a simple CSV file on your own computer. Nothing is sent anywhere.
+This project doesn't depend on any external dataset — it works on whatever resume text and job description text the user provides as input, making it fully self-contained and privacy-friendly (no data ever leaves the user's machine).
 
-**The "intelligence" here is a rule-based decision system** - a simple but genuinely useful form of AI logic. Instead of treating every application the same way, the tool applies a different follow-up rule depending on the stage of the application:
+**AI technique used: TF-IDF (Term Frequency-Inverse Document Frequency) + Cosine Similarity**
 
-| Stage | Follow up after |
-| ----- | ---------------- |
-| Applied | 7 days |
-| Interviewed | 3 days |
-| Offer pending | 2 days |
+* **TF-IDF** converts the resume and job description into numeric vectors, giving more weight to words that are distinctive to a document and less weight to common words that appear everywhere
+* **Cosine similarity** measures how closely aligned the two vectors are, producing a single score between 0 and 100%
 
-This mirrors how a thoughtful person would actually prioritise their own follow-ups - urgency increases the further along you are in the process.
+This project is implemented in **two languages** to demonstrate the same underlying logic:
 
-```python
-FOLLOW_UP_RULES = {
-    "applied": 7,       # follow up after 7 days of silence
-    "interviewed": 3,   # follow up sooner, after 3 days
-    "offer": 2           # follow up very soon, after 2 days
-}
+| Language | File |
+| -------- | ---- |
+| Python   | `python/match_score.py` |
+| Java     | `java/ResumeJobMatcher.java` |
 
-def needs_follow_up(application):
-    stage = application["stage"].strip().lower()
-    last_contact = application["last_contact_date"].strip()
-
-    if stage not in FOLLOW_UP_RULES:
-        return False
-
-    days_waited = days_since_contact(last_contact)
-    threshold = FOLLOW_UP_RULES[stage]
-
-    return days_waited >= threshold
-```
+Both implementations follow the identical algorithm: tokenize → compute term frequency → compute inverse document frequency → build TF-IDF vectors → calculate cosine similarity.
 
 ## Challenges
 
-This is a simple first version, so it has clear limitations:
+This project has a few important limitations:
 
-* It only works with the rules I've set - it doesn't learn or adjust to your personal follow-up style over time
-* It doesn't actually send the follow-up message for you - you still have to write and send it yourself
-* It relies on you remembering to update the CSV file whenever something changes (a missed update means a wrong reminder)
-* It currently has no understanding of weekends, public holidays, or out-of-office periods, which could affect what "too long" really means
+* It only measures **keyword overlap**, not actual semantic meaning — a resume could use different words for the same skill (e.g. "led a team" vs "managed a team") and be scored lower than it should
+* It can be **gamed by keyword stuffing**, where a resume packed with buzzwords scores artificially high without genuine relevant experience
+* It does not understand **context or seniority** — mentioning "Java" once is treated the same as years of deep Java expertise
+* It should never be used as a sole hiring decision tool — fairness, bias, and human judgement must always remain part of any real recruitment process
 
 ## What next?
 
-This project has a lot of room to grow. Some ideas for the future:
-
-* **Once an application reaches "interview scheduled" stage**, the tool could suggest specific technical and behavioural topics to prepare, tailored to that company and role
-* **Pulling commonly asked interview questions** for that specific company or recruiter, to help focus preparation time
-* **Personalised learning modules** that only show topics relevant to that particular company's tech stack, instead of generic interview prep
-* Turning this into a small web app with reminders sent by email instead of needing to run a script manually
-* Connecting it to actual email or LinkedIn data, so the "last contact date" updates automatically instead of being entered by hand
+* Add **synonym and skill-taxonomy matching** (e.g. recognising "Spring Boot" and "Spring Framework" as related)
+* Extract and highlight **missing keywords** from the job description so users know exactly what to add
+* Build a simple **web interface** so non-technical users can use it without running code
+* Train a more advanced model using **word embeddings** (e.g. Word2Vec or sentence transformers) to capture semantic similarity instead of just keyword overlap
+* Package the Java version as a **Spring Boot REST API** so it could be integrated into a real job-search or ATS tool
 
 ## Acknowledgments
 
-* Built using rule-based logic concepts introduced in the [Building AI](https://buildingai.elementsofai.com/) course by Reaktor and the University of Helsinki
+* Built using concepts taught in the [Building AI](https://buildingai.elementsofai.com/) course by Reaktor and the University of Helsinki, particularly the TF-IDF and vector similarity exercises
 * No external code, datasets, or assets from third parties were used in this project
